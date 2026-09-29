@@ -24,9 +24,31 @@ int main(int argc, char** argv){
     const int height = atoi(argv[4]); 
     const char *output_filepath = argv[5];
 
-    // TODO: call correct function based on mode
+    // Check correct mode passed in
+    if (strcmp(mode, "kernel") != 0 &&
+        strcmp(mode, "mmap") != 0 &&
+        strcmp(mode, "convert") != 0 &&
+        strcmp(mode, "uconvert") != 0 &&
+        strcmp(mode, "fault") != 0) {
+        printf("Unknown mode '%s'. Expected kernel, mmap, convert, uconvert, or fault.\n", mode);
+        return -1;
+    }
 
+    // TODO: call correct function based on mode
+    
     // TODO: allocate the space needed for one image and load the image
+    if (width <= 0 || height <= 0 ||
+        (size_t)width > SIZE_MAX / (size_t)height / sizeof(struct pixel)) {
+        printf("Invalid image dimensions: %d x %d\n", width, height);
+        return -1;
+    }
+
+    struct image image = { .pixels = NULL, .width = width, .height = height };
+    image.pixels = malloc((size_t)width * (size_t)height * sizeof(struct pixel));
+    if (image.pixels == NULL) {
+        printf("Failed to allocate image memory\n");
+        return -1;
+    }
 
     int kernel[3][3] = {{1,1,1},{1,1,1},{1,1,1}};
 
