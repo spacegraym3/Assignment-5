@@ -18,6 +18,12 @@ int main(int argc, char** argv){
         return -1;
     }
 
+    const char *mode = argv[1];
+    const char *input_filepath = argv[2];
+    const int width = atoi(argv[3]);
+    const int height = atoi(argv[4]); 
+    const char *output_filepath = argv[5];
+
     // TODO: call correct function based on mode
 
     // TODO: allocate the space needed for one image and load the image
