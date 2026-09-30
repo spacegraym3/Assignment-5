@@ -36,14 +36,15 @@ int main(int argc, char** argv){
     }
 
 
+    struct image *img = malloc(sizeof(struct image));
+    if (img == NULL) {
+        printf("Failed to allocate image\n");
+        return -1;
+    }
+    img->width = width;
+    img->height = height;
+    
     if (strcmp(mode, "kernel") == 0) {
-        struct image *img = malloc(sizeof(struct image));
-        if (img == NULL) {
-            printf("Failed to allocate image\n");
-            return -1;
-        }
-        img->width = width;
-        img->height = height;
 
         int load_result = loadimage((char *)input_filepath, img);
         if (load_result != 0 || img->pixels == NULL) {
@@ -73,19 +74,6 @@ int main(int argc, char** argv){
         generate_pagefault();
         return 0;
     }
-
-    if (width <= 0 || height <= 0) {
-        printf("Invalid image dimensions: %d x %d\n", width, height);
-        return -1;
-    }
-
-    struct image *img = malloc(sizeof(struct image));
-    if (img == NULL) {
-        printf("Failed to allocate image\n");
-        return -1;
-    }
-    img->width = width;
-    img->height = height;
 
     int uses_mmap = strcmp(mode, "mmap") == 0 || strcmp(mode, "uconvert") == 0;
     int load_result = uses_mmap
