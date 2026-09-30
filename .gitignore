@@ -1,2 +1,4 @@
 *.o
 cli
+test
+*.bak

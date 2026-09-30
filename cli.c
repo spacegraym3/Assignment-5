@@ -1,5 +1,6 @@
 #include "kernel.h"
 #include <string.h>
+#include <sys/mman.h>
 
 int generate_pagefault() {
 
@@ -34,23 +35,103 @@ int main(int argc, char** argv){
         return -1;
     }
 
-    // TODO: call correct function based on mode
-    
-    // TODO: allocate the space needed for one image and load the image
-    if (width <= 0 || height <= 0 ||
-        (size_t)width > SIZE_MAX / (size_t)height / sizeof(struct pixel)) {
+
+    if (strcmp(mode, "kernel") == 0) {
+        struct image *img = malloc(sizeof(struct image));
+        if (img == NULL) {
+            printf("Failed to allocate image\n");
+            return -1;
+        }
+        img->width = width;
+        img->height = height;
+
+        int load_result = loadimage((char *)input_filepath, img);
+        if (load_result != 0 || img->pixels == NULL) {
+            printf("Failed to load image: %s\n", input_filepath);
+            free(img);
+            return -1;      
+        }
+
+        int kernel[3][3] = {{1,1,1},{1,1,1},{1,1,1}};
+        struct image *result = apply_kernel(img, (int *)kernel, 3, 1.0f / 9.0f);
+
+        if (result == NULL) {
+            printf("Failed to apply kernel\n");
+            free(img->pixels);
+            free(img);
+            return -1;
+        }
+        int ret = saveimage((char *)output_filepath, result);
+        free(img->pixels);
+        free(img);
+        free(result->pixels);
+        free(result);
+        return ret == 0 ? 0 : -1;
+    }
+
+    if (strcmp(mode, "fault") == 0) {
+        generate_pagefault();
+        return 0;
+    }
+
+    if (width <= 0 || height <= 0) {
         printf("Invalid image dimensions: %d x %d\n", width, height);
         return -1;
     }
 
-    struct image image = { .pixels = NULL, .width = width, .height = height };
-    image.pixels = malloc((size_t)width * (size_t)height * sizeof(struct pixel));
-    if (image.pixels == NULL) {
-        printf("Failed to allocate image memory\n");
+    struct image *img = malloc(sizeof(struct image));
+    if (img == NULL) {
+        printf("Failed to allocate image\n");
         return -1;
+    }
+    img->width = width;
+    img->height = height;
+
+    int uses_mmap = strcmp(mode, "mmap") == 0 || strcmp(mode, "uconvert") == 0;
+    int load_result = uses_mmap
+        ? loadimage_mmap((char *)input_filepath, img)
+        : loadimage((char *)input_filepath, img);
+    if (load_result != 0 || img->pixels == NULL) {
+        printf("Failed to load image: %s\n", input_filepath);
+        free(img);
+        return -1;
+    }
+
+    if (strcmp(mode, "convert") == 0) {
+        int result = saveimage_mmap((char *)output_filepath, img);
+        free(img->pixels);
+        free(img);
+        return result == 0 ? 0 : -1;
+    }
+
+    if (strcmp(mode, "uconvert") == 0) {
+        int result = saveimage((char *)output_filepath, img);
+        munmap((char *)img->pixels - sizeof(struct image),
+               sizeof(struct image) + (size_t)width * height * sizeof(struct pixel));
+        free(img);
+        return result == 0 ? 0 : -1;
     }
 
     int kernel[3][3] = {{1,1,1},{1,1,1},{1,1,1}};
 
-    // TODO: call apply kernel with 1/9 (as a float) as the normalization value
+    float normalize = 1.0f / 9.0f;
+    struct image *result = apply_kernel(img, (int *)kernel, 3, normalize);
+    if (uses_mmap) {
+        munmap((char *)img->pixels - sizeof(struct image),
+               sizeof(struct image) + (size_t)width * height * sizeof(struct pixel));
+    } else {
+        free(img->pixels);
+    }
+    free(img);
+
+    if (result == NULL) {
+        printf("Failed to apply kernel\n");
+        return -1;
+    }
+
+    int save_result = saveimage((char *)output_filepath, result);
+    free(result->pixels);
+    free(result);
+    return save_result == 0 ? 0 : -1;
+
 }
