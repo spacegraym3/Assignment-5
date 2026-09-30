@@ -1,6 +1,8 @@
 #include "loader.h"
 #include <sys/mman.h>
+#include <sys/stat.h>
 #include <errno.h>
+#include <string.h>
 
 
 /*
@@ -27,7 +29,39 @@
  * Returns 0 on success, or -1 if the file cannot be opened or mapped.
  */
 int loadimage_mmap(char* filename, struct image* image) {
-	
+	if (filename == NULL || image == NULL || image->width <= 0 ||
+	    image->height <= 0) return -1;
+
+	size_t width = (size_t)image->width;
+	size_t height = (size_t)image->height;
+	if (width > (SIZE_MAX - sizeof(struct image)) /
+		    sizeof(struct pixel) / height) return -1;
+	size_t mapping_size = sizeof(struct image) +
+		width * height * sizeof(struct pixel);
+
+	int fd = open(filename, O_RDONLY);
+	if (fd == -1) return -1;
+
+	struct stat file_status;
+	if (fstat(fd, &file_status) == -1 || file_status.st_size < 0 ||
+	    (uintmax_t)file_status.st_size != (uintmax_t)mapping_size) {
+		close(fd);
+		return -1;
+	}
+
+	void *mapping = mmap(NULL, mapping_size, PROT_READ, MAP_SHARED, fd, 0);
+	close(fd);
+	if (mapping == MAP_FAILED) return -1;
+
+	struct image file_image;
+	memcpy(&file_image, mapping, sizeof(file_image));
+	if (file_image.width != image->width || file_image.height != image->height) {
+		munmap(mapping, mapping_size);
+		return -1;
+	}
+
+	*image = file_image;
+	image->pixels = (struct pixel *)((char *)mapping + sizeof(struct image));
 	return 0;
 }
 
@@ -142,4 +176,48 @@ int saveimage(char* filename, struct image* image) {
 
 	close(fd);
 	return 0;
+}
+
+/**
+ * Saves an image struct to a binary file.
+ * Returns 1 on success, 0 on failure.
+ */
+int save_image_binary(const char* filename, const struct image* img) {
+    if (filename == NULL || img == NULL || img->pixels == NULL) {
+        return 0;
+    }
+
+    // Open file in write-binary mode ("wb")
+    FILE* file = fopen(filename, "wb");
+    if (file == NULL) {
+        perror("Error opening file for writing");
+        return 0;
+    }
+
+    // 1. Write the metadata (width and height)
+    if (fwrite(&img->width, sizeof(int), 1, file) != 1) {
+        perror("Error writing image width");
+        fclose(file);
+        return 0;
+    }
+
+    if (fwrite(&img->height, sizeof(int), 1, file) != 1) {
+        perror("Error writing image height");
+        fclose(file);
+        return 0;
+    }
+
+    // 2. Calculate total pixels and write the pixel array block
+    size_t total_pixels = (size_t)img->width * (size_t)img->height;
+    size_t elements_written = fwrite(img->pixels, sizeof(struct pixel), total_pixels, file);
+    
+    if (elements_written != total_pixels) {
+        perror("Error writing pixel data");
+        fclose(file);
+        return 0;
+    }
+
+    // Clean up
+    fclose(file);
+    return 1;
 }
