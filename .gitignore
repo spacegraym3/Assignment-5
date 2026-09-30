@@ -3,3 +3,5 @@ cli
 test
 *.bak
 out.bmp
+testout
+log*

@@ -27,6 +27,7 @@
  * Returns 0 on success, or -1 if the file cannot be opened or mapped.
  */
 int loadimage_mmap(char* filename, struct image* image) {
+	
 	return 0;
 }
 
