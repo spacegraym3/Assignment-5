@@ -1,2 +1,2 @@
-(1) The program starts using around 12000 kb of memory at the beginning.  It continues to increase for each subsequent call.  It tops out at around 394000 kb.
-(2)   
+(1) Running 'source bench.sh 1' starts using around 500 kb of memory at the beginning.  It continues to significantly increase for each subsequent call.  It tops out at around 394000 kb.
+(2) Running 'source bench.sh 5' does exactly the same except it is runnng 5 processes simultaneously versus 1 process in the previous run.
