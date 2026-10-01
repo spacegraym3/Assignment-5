@@ -35,6 +35,7 @@ int main(int argc, char** argv){
         return -1;
     }
 
+    // Load image
 
     struct image *img = malloc(sizeof(struct image));
     if (img == NULL) {
@@ -43,16 +44,16 @@ int main(int argc, char** argv){
     }
     img->width = width;
     img->height = height;
+
+
+    int load_result = loadimage((char *)input_filepath, img);
+    if (load_result != 0 || img->pixels == NULL) {
+        printf("Failed to load image: %s\n", input_filepath);
+        free(img);
+        return -1;      
+    }
     
     if (strcmp(mode, "kernel") == 0) {
-
-        int load_result = loadimage((char *)input_filepath, img);
-        if (load_result != 0 || img->pixels == NULL) {
-            printf("Failed to load image: %s\n", input_filepath);
-            free(img);
-            return -1;      
-        }
-
         int kernel[3][3] = {{1,1,1},{1,1,1},{1,1,1}};
         struct image *result = apply_kernel(img, (int *)kernel, 3, 1.0f / 9.0f);
 
@@ -69,12 +70,22 @@ int main(int argc, char** argv){
         free(result);
         return ret == 0 ? 0 : -1;
     }
+    // ./cli convert images/4096x4096.bmp 4096 4096 images/4096x4096.bin
+    if (strcmp(mode, "convert") == 0) {
+        int result = saveimage_mmap((char *)output_filepath, img);
+        free(img->pixels);
+        free(img);
+        return result == 0 ? 0 : -1;
+    }
 
     if (strcmp(mode, "fault") == 0) {
         generate_pagefault();
         return 0;
     }
 
+    int uses_mmap = strcmp(mode, "mmap") == 0;
+
+/*
     int uses_mmap = strcmp(mode, "mmap") == 0 || strcmp(mode, "uconvert") == 0;
     int load_result = uses_mmap
         ? loadimage_mmap((char *)input_filepath, img)
@@ -84,13 +95,9 @@ int main(int argc, char** argv){
         free(img);
         return -1;
     }
+        */
 
-    if (strcmp(mode, "convert") == 0) {
-        int result = saveimage_mmap((char *)output_filepath, img);
-        free(img->pixels);
-        free(img);
-        return result == 0 ? 0 : -1;
-    }
+
 
     if (strcmp(mode, "uconvert") == 0) {
         int result = saveimage((char *)output_filepath, img);

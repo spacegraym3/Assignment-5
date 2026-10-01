@@ -74,6 +74,7 @@ int test_mmap() {
     out->width = 640;
     out->height = 426;
     
+    printf("Loading image from mmap...\n");
     loadimage_mmap("test.bin", out);
     
     return compare_images(image, out,0);
