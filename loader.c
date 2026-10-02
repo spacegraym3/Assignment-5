@@ -29,6 +29,10 @@
  * Returns 0 on success, or -1 if the file cannot be opened or mapped.
  */
 int loadimage_mmap(char* filename, struct image* image) {
+
+	printf("loadimage_mmap image width: %d\n", image->width);
+	printf("loadimage_mmap image height: %d\n", image->height);
+	
 	if (filename == NULL || image == NULL || image->width <= 0 ||
 	    image->height <= 0) return -1;
 
@@ -47,10 +51,14 @@ int loadimage_mmap(char* filename, struct image* image) {
 	}
 
 	image = mmap(NULL, mapping_size, PROT_READ, MAP_SHARED, fd, 0);
-	printf("image: %p\n", image);
+	printf("loadimage_mmap image pixels: %p\n", image->pixels);
 	close(fd);
 	if (image == MAP_FAILED) return -1;
 
+	printf("image: %p\n", image);
+	printf("image width: %d\n", image->width);
+	printf("image height: %d\n", image->height);
+	printf("image->pixels: %p\n", image->pixels);
 	return 0;
 }
 
@@ -90,6 +98,7 @@ int saveimage_mmap(char* filename, struct image* image) {
 		return -1;
 	}
 
+
 	void *mapping = mmap(NULL, mapping_size, PROT_READ | PROT_WRITE,
 			     MAP_SHARED, fd, 0);
 	if (mapping == MAP_FAILED) {
@@ -119,6 +128,7 @@ int loadimage(char* filename, struct image* image) {
 	uint32_t x, y;
 	BMPHeader header;
 	BMPInfoHeader infoHeader;
+
 
 	if (fd == -1) return -1;
 
