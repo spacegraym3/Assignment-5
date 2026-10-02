@@ -5,7 +5,23 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
-int generate_pagefault(void) {
+int generate_pagefault() {
+    struct image* image = malloc(sizeof(struct image));
+    image->width = 640;
+    image->height = 426;
+    image->pixels = malloc(sizeof(struct pixel) * image->width * image->height);
+
+
+    loadimage("images/sky.bmp",image);
+
+    printf("Saving image to mmap...\n");
+    saveimage_mmap("test.bin", image);
+
+    struct image* out = malloc(sizeof(struct image));
+    out->width = 640;
+    out->height = 426;
+}
+int generate_pagefault2(void) {
     const int width = 2048;
     const int height = 2048;
     const size_t pixel_count = (size_t)width * height;

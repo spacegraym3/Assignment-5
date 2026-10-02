@@ -31,13 +31,7 @@
 int loadimage_mmap(char* filename, struct image* image) {
 	if (filename == NULL || image == NULL || image->width <= 0 ||
 	    image->height <= 0) return -1;
-
-	size_t width = (size_t)image->width;
-	size_t height = (size_t)image->height;
-	if (width > (SIZE_MAX - sizeof(struct image)) / sizeof(struct pixel) / height)
-		return -1;
-	size_t mapping_size = sizeof(struct image) +
-		width * height * sizeof(struct pixel);
+	int mapping_size = sizeof(struct image) + image->width * image->height * sizeof(struct pixel);
 
 	int fd = open(filename, O_RDONLY);
 	if (fd == -1) return -1;
@@ -89,13 +83,10 @@ int saveimage_mmap(char* filename, struct image* image) {
 	if (filename == NULL || image == NULL || image->pixels == NULL ||
 	    image->width <= 0 || image->height <= 0) return -1;
 
-	size_t width = (size_t)image->width;
-	size_t height = (size_t)image->height;
-	size_t pixel_size = width * height * sizeof(struct pixel);
+	int pixel_size = image->width * image->height * sizeof(struct pixel);
+	int mapping_size = sizeof(struct image) + pixel_size;
 
-	size_t mapping_size = sizeof(struct image) + pixel_size;
-
-	off_t file_size = (off_t)mapping_size;
+	int file_size = (off_t)mapping_size;
 
 	int fd = open(filename, O_RDWR | O_CREAT | O_TRUNC,
 		      S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
@@ -246,8 +237,8 @@ int save_image_binary(const char* filename, const struct image* img) {
     }
 
     // 2. Calculate total pixels and write the pixel array block
-    size_t total_pixels = (size_t)img->width * (size_t)img->height;
-    size_t elements_written = fwrite(img->pixels, sizeof(struct pixel), total_pixels, file);
+    int total_pixels = img->width * img->height;
+    int elements_written = fwrite(img->pixels, sizeof(struct pixel), total_pixels, file);
     
     if (elements_written != total_pixels) {
         perror("Error writing pixel data");
