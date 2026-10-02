@@ -16,80 +16,31 @@ int generate_pagefault() {
 
     printf("Saving image to mmap...\n");
     saveimage_mmap("test.bin", image);
+    printf("WTF");
 
-    struct image* out = malloc(sizeof(struct image));
-    out->width = 640;
-    out->height = 426;
-}
-int generate_pagefault2(void) {
-    const int width = 2048;
-    const int height = 2048;
-    const size_t pixel_count = (size_t)width * height;
-    const size_t pixel_bytes = pixel_count * sizeof(struct pixel);
-    const size_t mapping_size = sizeof(struct image) + pixel_bytes;
-    char filename[] = "/tmp/assignment5-pagefault-XXXXXX";
-    struct image source = { .pixels = NULL, .width = width, .height = height };
-    struct image mapped = { .pixels = NULL, .width = width, .height = height };
-    int result = -1;
-    int fd;
-    int temp_fd;
-    int advised;
-    long page_size;
-    int mapping_loaded = 0;
+   // struct image* out = malloc(sizeof(struct image));
+   // out->width = 640;
+   // out->height = 426;
 
-    page_size = sysconf(_SC_PAGESIZE);
-    if (page_size <= 0) return -1;
+    printf("Loading image from mmap...\n");
 
-    source.pixels = malloc(pixel_bytes);
-    if (source.pixels == NULL) return -1;
-    for (size_t i = 0; i < pixel_count; i++) {
-        source.pixels[i].r = (int)(i & 255);
-        source.pixels[i].g = (int)((i >> 8) & 255);
-        source.pixels[i].b = (int)((i >> 16) & 255);
-    }
+    int mapping_size = sizeof(struct image) + image->width * image->height * sizeof(struct pixel);
 
-    temp_fd = mkstemp(filename);
-    if (temp_fd == -1) goto cleanup;
-    if (close(temp_fd) == -1) {
-        unlink(filename);
-        goto cleanup;
-    }
-    if (saveimage_mmap(filename, &source) != 0) {
-        unlink(filename);
-        goto cleanup;
-    }
+	int fd = open("test.bin", O_RDONLY);
+	if (fd == -1) return -1;
 
-    fd = open(filename, O_RDONLY);
-    if (fd == -1) {
-        unlink(filename);
-        goto cleanup;
-    }
-    advised = posix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED);
+    // Force the OS to evict the file from Page Cache to guarantee disk I/O
+    posix_fadvise(fd, 0, mapping_size, POSIX_FADV_DONTNEED);
+
+	void *mapping = mmap(NULL, mapping_size, PROT_READ, MAP_SHARED, fd, 0);
+
+    // Should trigger major page fault
+    printf("mapping pixels: %p\n", ((char *)mapping + sizeof(struct image)));
+
+    // Clean up
+    munmap(mapping, mapping_size);
     close(fd);
-    if (advised != 0) {
-        unlink(filename);
-        goto cleanup;
-    }
 
-    if (loadimage_mmap(filename, &mapped) != 0) {
-        unlink(filename);
-        goto cleanup;
-    }
-    mapping_loaded = 1;
-
-    volatile unsigned char *bytes = (volatile unsigned char *)mapped.pixels;
-    volatile unsigned char checksum = 0;
-    for (size_t offset = 0; offset < pixel_bytes; offset += (size_t)page_size)
-        checksum ^= bytes[offset];
-    (void)checksum;
-
-    result = 0;
-
-cleanup:
-    if (mapping_loaded)
-        munmap((char *)mapped.pixels - sizeof(struct image), mapping_size);
-    free(source.pixels);
-    return result;
 }
 
 int main(int argc, char** argv){

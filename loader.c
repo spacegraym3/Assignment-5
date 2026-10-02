@@ -38,7 +38,7 @@ int loadimage_mmap(char* filename, struct image* image) {
 
 	struct stat file_status;
 	if (fstat(fd, &file_status) == -1 || file_status.st_size < 0 ||
-	    (uintmax_t)file_status.st_size != (uintmax_t)mapping_size) {
+	    file_status.st_size != mapping_size) {
 		close(fd);
 		return -1;
 	}
@@ -86,7 +86,7 @@ int saveimage_mmap(char* filename, struct image* image) {
 	int pixel_size = image->width * image->height * sizeof(struct pixel);
 	int mapping_size = sizeof(struct image) + pixel_size;
 
-	int file_size = (off_t)mapping_size;
+	int file_size = mapping_size;
 
 	int fd = open(filename, O_RDWR | O_CREAT | O_TRUNC,
 		      S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
