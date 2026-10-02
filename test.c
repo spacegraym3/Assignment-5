@@ -5,11 +5,13 @@
 
 
 int compare_images(struct image* img1, struct image* img2, int error_thresh) {
+    printf("Comparing images: img1 width: %d, height: %d; img2 width: %d, height: %d\n", img1->width, img1->height, img2->width, img2->height);
     if(img1->width != img2->width || img2->height != img1->height) {
         return 0;
     }
 
     for(int i = 0; i < img1->width*img1->height; i++) {
+
         if(abs(img1->pixels[i].r - img2->pixels[i].r) > error_thresh || abs(img1->pixels[i].g - img2->pixels[i].g) > error_thresh || abs(img1->pixels[i].b - img2->pixels[i].b) > error_thresh) {
             printf("Pixel Mismatch: {%d,%d,%d} != {%d,%d,%d}\n",img1->pixels[i].r,img1->pixels[i].g,img1->pixels[i].b,img2->pixels[i].r,img2->pixels[i].g,img2->pixels[i].b);
             return 0;
@@ -66,16 +68,19 @@ int test_mmap() {
     image->height = 426;
     image->pixels = malloc(sizeof(struct pixel) * image->width * image->height);
 
+
     loadimage("images/sky.bmp",image);
 
+    printf("Saving image to mmap...\n");
     saveimage_mmap("test.bin", image);
 
     struct image* out = malloc(sizeof(struct image));
     out->width = 640;
     out->height = 426;
     
-    printf("Loading image from mmap...\n");
     loadimage_mmap("test.bin", out);
+
+    printf("Comparing images...\n");
     
     return compare_images(image, out,0);
 }

@@ -29,16 +29,15 @@
  * Returns 0 on success, or -1 if the file cannot be opened or mapped.
  */
 int loadimage_mmap(char* filename, struct image* image) {
-
-	printf("loadimage_mmap image width: %d\n", image->width);
-	printf("loadimage_mmap image height: %d\n", image->height);
-	
 	if (filename == NULL || image == NULL || image->width <= 0 ||
 	    image->height <= 0) return -1;
 
 	size_t width = (size_t)image->width;
 	size_t height = (size_t)image->height;
-	size_t mapping_size = sizeof(struct image) + width * height * sizeof(struct pixel);
+	if (width > (SIZE_MAX - sizeof(struct image)) / sizeof(struct pixel) / height)
+		return -1;
+	size_t mapping_size = sizeof(struct image) +
+		width * height * sizeof(struct pixel);
 
 	int fd = open(filename, O_RDONLY);
 	if (fd == -1) return -1;
@@ -50,15 +49,23 @@ int loadimage_mmap(char* filename, struct image* image) {
 		return -1;
 	}
 
-	image = mmap(NULL, mapping_size, PROT_READ, MAP_SHARED, fd, 0);
-	printf("loadimage_mmap image pixels: %p\n", image->pixels);
-	close(fd);
-	if (image == MAP_FAILED) return -1;
+	void *mapping = mmap(NULL, mapping_size, PROT_READ, MAP_SHARED, fd, 0);
+	int close_result = close(fd);
+	if (mapping == MAP_FAILED) return -1;
+	if (close_result == -1) {
+		munmap(mapping, mapping_size);
+		return -1;
+	}
 
-	printf("image: %p\n", image);
-	printf("image width: %d\n", image->width);
-	printf("image height: %d\n", image->height);
-	printf("image->pixels: %p\n", image->pixels);
+	struct image file_image;
+	memcpy(&file_image, mapping, sizeof(file_image));
+	if (file_image.width != image->width || file_image.height != image->height) {
+		munmap(mapping, mapping_size);
+		return -1;
+	}
+
+	*image = file_image;
+	image->pixels = (struct pixel *)((char *)mapping + sizeof(struct image));
 	return 0;
 }
 
