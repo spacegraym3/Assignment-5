@@ -1,9 +1,79 @@
 #include "kernel.h"
+#include <fcntl.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
+#include <unistd.h>
 
-int generate_pagefault() {
+int generate_pagefault(void) {
+    const int width = 2048;
+    const int height = 2048;
+    const size_t pixel_count = (size_t)width * height;
+    const size_t pixel_bytes = pixel_count * sizeof(struct pixel);
+    const size_t mapping_size = sizeof(struct image) + pixel_bytes;
+    char filename[] = "/tmp/assignment5-pagefault-XXXXXX";
+    struct image source = { .pixels = NULL, .width = width, .height = height };
+    struct image mapped = { .pixels = NULL, .width = width, .height = height };
+    int result = -1;
+    int fd;
+    int temp_fd;
+    int advised;
+    long page_size;
+    int mapping_loaded = 0;
 
+    page_size = sysconf(_SC_PAGESIZE);
+    if (page_size <= 0) return -1;
+
+    source.pixels = malloc(pixel_bytes);
+    if (source.pixels == NULL) return -1;
+    for (size_t i = 0; i < pixel_count; i++) {
+        source.pixels[i].r = (int)(i & 255);
+        source.pixels[i].g = (int)((i >> 8) & 255);
+        source.pixels[i].b = (int)((i >> 16) & 255);
+    }
+
+    temp_fd = mkstemp(filename);
+    if (temp_fd == -1) goto cleanup;
+    if (close(temp_fd) == -1) {
+        unlink(filename);
+        goto cleanup;
+    }
+    if (saveimage_mmap(filename, &source) != 0) {
+        unlink(filename);
+        goto cleanup;
+    }
+
+    fd = open(filename, O_RDONLY);
+    if (fd == -1) {
+        unlink(filename);
+        goto cleanup;
+    }
+    advised = posix_fadvise(fd, 0, 0, POSIX_FADV_DONTNEED);
+    close(fd);
+    if (advised != 0) {
+        unlink(filename);
+        goto cleanup;
+    }
+
+    if (loadimage_mmap(filename, &mapped) != 0) {
+        unlink(filename);
+        goto cleanup;
+    }
+    mapping_loaded = 1;
+
+    volatile unsigned char *bytes = (volatile unsigned char *)mapped.pixels;
+    volatile unsigned char checksum = 0;
+    for (size_t offset = 0; offset < pixel_bytes; offset += (size_t)page_size)
+        checksum ^= bytes[offset];
+    (void)checksum;
+
+    result = 0;
+
+cleanup:
+    if (mapping_loaded)
+        munmap((char *)mapped.pixels - sizeof(struct image), mapping_size);
+    free(source.pixels);
+    return result;
 }
 
 int main(int argc, char** argv){
@@ -33,6 +103,10 @@ int main(int argc, char** argv){
         strcmp(mode, "fault") != 0) {
         printf("Unknown mode '%s'. Expected kernel, mmap, convert, uconvert, or fault.\n", mode);
         return -1;
+    }
+
+    if (strcmp(mode, "fault") == 0) {
+        return generate_pagefault() == 0 ? 0 : -1;
     }
 
     // Load image
@@ -76,11 +150,6 @@ int main(int argc, char** argv){
         free(img->pixels);
         free(img);
         return result == 0 ? 0 : -1;
-    }
-
-    if (strcmp(mode, "fault") == 0) {
-        generate_pagefault();
-        return 0;
     }
 
     int uses_mmap = strcmp(mode, "mmap") == 0;
