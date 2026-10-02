@@ -105,7 +105,6 @@ int saveimage_mmap(char* filename, struct image* image) {
 		return -1;
 	}
 
-
 	void *mapping = mmap(NULL, mapping_size, PROT_READ | PROT_WRITE,
 			     MAP_SHARED, fd, 0);
 	if (mapping == MAP_FAILED) {

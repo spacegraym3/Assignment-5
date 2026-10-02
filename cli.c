@@ -120,12 +120,23 @@ int main(int argc, char** argv){
     img->height = height;
 
 
+
+    int uses_mmap = strcmp(mode, "mmap") == 0 || strcmp(mode, "uconvert") == 0;
+    int load_result = uses_mmap
+        ? loadimage_mmap((char *)input_filepath, img)
+        : loadimage((char *)input_filepath, img);
+    if (load_result != 0 || img->pixels == NULL) {
+        printf("Failed to load image: %s\n", input_filepath);
+        free(img);
+        return -1;
+    }
+    /*
     int load_result = loadimage((char *)input_filepath, img);
     if (load_result != 0 || img->pixels == NULL) {
         printf("Failed to load image: %s\n", input_filepath);
         free(img);
         return -1;      
-    }
+    }*/
     
     if (strcmp(mode, "kernel") == 0) {
         int kernel[3][3] = {{1,1,1},{1,1,1},{1,1,1}};
@@ -151,22 +162,6 @@ int main(int argc, char** argv){
         free(img);
         return result == 0 ? 0 : -1;
     }
-
-    int uses_mmap = strcmp(mode, "mmap") == 0;
-
-/*
-    int uses_mmap = strcmp(mode, "mmap") == 0 || strcmp(mode, "uconvert") == 0;
-    int load_result = uses_mmap
-        ? loadimage_mmap((char *)input_filepath, img)
-        : loadimage((char *)input_filepath, img);
-    if (load_result != 0 || img->pixels == NULL) {
-        printf("Failed to load image: %s\n", input_filepath);
-        free(img);
-        return -1;
-    }
-        */
-
-
 
     if (strcmp(mode, "uconvert") == 0) {
         int result = saveimage((char *)output_filepath, img);
