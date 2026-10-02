@@ -12,18 +12,8 @@ int generate_pagefault() {
     image->pixels = malloc(sizeof(struct pixel) * image->width * image->height);
 
 
-    loadimage("images/sky.bmp",image);
-
-    printf("Saving image to mmap...\n");
+    loadimage("sky.bmp",image);
     saveimage_mmap("test.bin", image);
-    printf("WTF");
-
-   // struct image* out = malloc(sizeof(struct image));
-   // out->width = 640;
-   // out->height = 426;
-
-    printf("Loading image from mmap...\n");
-
     int mapping_size = sizeof(struct image) + image->width * image->height * sizeof(struct pixel);
 
 	int fd = open("test.bin", O_RDONLY);
@@ -34,8 +24,9 @@ int generate_pagefault() {
 
 	void *mapping = mmap(NULL, mapping_size, PROT_READ, MAP_SHARED, fd, 0);
 
-    // Should trigger major page fault
-    printf("mapping pixels: %p\n", ((char *)mapping + sizeof(struct image)));
+
+    // Force the OS to evict the file from Page Cache to guarantee disk I/O
+    posix_fadvise(fd, 0, mapping_size, POSIX_FADV_DONTNEED);
 
     // Clean up
     munmap(mapping, mapping_size);
@@ -97,13 +88,6 @@ int main(int argc, char** argv){
         free(img);
         return -1;
     }
-    /*
-    int load_result = loadimage((char *)input_filepath, img);
-    if (load_result != 0 || img->pixels == NULL) {
-        printf("Failed to load image: %s\n", input_filepath);
-        free(img);
-        return -1;      
-    }*/
     
     if (strcmp(mode, "kernel") == 0) {
         int kernel[3][3] = {{1,1,1},{1,1,1},{1,1,1}};
